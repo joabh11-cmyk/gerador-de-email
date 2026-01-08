@@ -1,0 +1,5 @@
+{
+  "name": "Clube do Voo - Extrator de Voos",
+  "description": "Extrai dados de voos de PDFs ou imagens e gera um email HTML formatado automaticamente.",
+  "requestFramePermissions": []
+}
