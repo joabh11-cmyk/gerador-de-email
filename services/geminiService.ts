@@ -6,11 +6,17 @@ let genAI: GoogleGenAI | null = null;
 
 const getGenAI = () => {
   if (!genAI) {
-    // Vite exposes env vars on import.meta.env
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    // 1. Try LocalStorage (User Configured)
+    let apiKey = localStorage.getItem('flight_extractor_api_key');
+
+    // 2. Try Env Vars (Server/Build Configured)
+    if (!apiKey) {
+      apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    }
+
     if (!apiKey) {
       console.error("DEBUG: API Key está vazia ou indefinida:", apiKey);
-      throw new Error("API Key do Gemini não configurada. Verifique as variáveis de ambiente.");
+      throw new Error("API Key não encontrada. Configure-a na aba 'Configurações' ou no ambiente.");
     }
     genAI = new GoogleGenAI({ apiKey });
   }
