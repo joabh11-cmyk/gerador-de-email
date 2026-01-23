@@ -21,3 +21,10 @@ export interface ExtractedFlightData {
   outbound: FlightSegment;
   inbound?: FlightSegment | null;
 }
+
+export interface HistoryItem {
+  id: string;
+  timestamp: number;
+  data: ExtractedFlightData;
+  html: string;
+}
