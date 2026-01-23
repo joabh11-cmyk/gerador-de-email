@@ -5,7 +5,7 @@ import HistoryPanel from './components/HistoryPanel';
 import { extractFlightData } from './services/aiFactory';
 import { generateEmailHtml } from './utils/htmlTemplate';
 import { saveToHistory } from './services/historyService';
-import { HistoryItem } from './types';
+import { HistoryItem, ExtractedFlightData } from './types';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'generator' | 'config'>('generator');
@@ -14,39 +14,104 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [historyRefresh, setHistoryRefresh] = useState(0);
 
-  const handleFileSelect = async (file: File) => {
+  // Upload Mode State
+  const [uploadMode, setUploadMode] = useState<'single' | 'dual'>('single');
+  const [fileSingle, setFileSingle] = useState<File | null>(null);
+  const [fileOutbound, setFileOutbound] = useState<File | null>(null);
+  const [fileInbound, setFileInbound] = useState<File | null>(null);
+
+  // Helper to process a single file and return data
+  const processFile = async (file: File): Promise<ExtractedFlightData> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        try {
+          const base64 = (reader.result as string).split(',')[1];
+          const data = await extractFlightData(base64, file.type);
+          resolve(data);
+        } catch (e) {
+          reject(e);
+        }
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleProcess = async () => {
     setIsLoading(true);
     setError(null);
     setHtmlOutput(null);
 
     try {
-      // Convert file to Base64
-      const base64Data = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const result = reader.result as string;
-          // Remove data URL prefix (e.g., "data:image/jpeg;base64,")
-          const base64 = result.split(',')[1];
-          resolve(base64);
+      let finalData: ExtractedFlightData;
+
+      if (uploadMode === 'single') {
+        if (!fileSingle) throw new Error("Por favor, envie um arquivo.");
+        finalData = await processFile(fileSingle);
+      } else {
+        if (!fileOutbound || !fileInbound) throw new Error("Por favor, envie os arquivos de Ida e Volta.");
+
+        // Process both in parallel
+        const [dataIda, dataVolta] = await Promise.all([
+          processFile(fileOutbound),
+          processFile(fileInbound)
+        ]);
+
+        // Merge Logic
+        // We take the passenger names and greeting from the Outbound ticket
+        // We map the 'outbound' result of the second file to 'inbound' of the final data
+        finalData = {
+          ...dataIda,
+          inbound: dataVolta.outbound
         };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
+      }
 
-      const extractedData = await extractFlightData(base64Data, file.type);
-      const generatedHtml = generateEmailHtml(extractedData);
-
+      const generatedHtml = generateEmailHtml(finalData);
       setHtmlOutput(generatedHtml);
-      saveToHistory(extractedData, generatedHtml);
+      saveToHistory(finalData, generatedHtml);
       setHistoryRefresh(prev => prev + 1);
 
     } catch (err: any) {
       console.error(err);
-      setError(err.message || "Ocorreu um erro ao processar o arquivo. Tente novamente.");
+      setError(err.message || "Erro ao processar. Verifique os arquivos.");
     } finally {
       setIsLoading(false);
     }
   };
+
+  const onSingleUpload = (file: File) => {
+    setFileSingle(file);
+    setUploadMode('single');
+
+    // Auto-trigger for single mode
+    setIsLoading(true);
+    setHtmlOutput(null);
+    setError(null);
+
+    processFile(file).then(data => {
+      const html = generateEmailHtml(data);
+      setHtmlOutput(html);
+      saveToHistory(data, html);
+      setHistoryRefresh(p => p + 1);
+    }).catch(err => {
+      console.error(err);
+      setError(err.message || "Erro ao processar arquivo.");
+    }).finally(() => setIsLoading(false));
+  };
+
+  const onOutboundUpload = (file: File) => {
+    setFileOutbound(file);
+    setError(null);
+  };
+
+  const onInboundUpload = (file: File) => {
+    setFileInbound(file);
+    setError(null);
+  };
+
+  // Legacy handler mapping (if passed as props somewhere expecting the old signature)
+  const handleFileSelect = onSingleUpload;
 
   const handleHistorySelect = (item: HistoryItem) => {
     setHtmlOutput(item.html);
@@ -104,12 +169,94 @@ const App: React.FC = () => {
 
             {/* Left Column: Input (5 cols) */}
             <div className="lg:col-span-12 xl:col-span-5 space-y-6">
+
+              {/* Process Mode Toggle */}
+              <div className="bg-white p-2 rounded-lg shadow-sm border border-gray-200 flex mb-4">
+                <button
+                  onClick={() => setUploadMode('single')}
+                  className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${uploadMode === 'single'
+                      ? 'bg-blue-50 text-blue-700 shadow-sm'
+                      : 'text-gray-500 hover:bg-gray-50'
+                    }`}
+                >
+                  Arquivo Único
+                </button>
+                <button
+                  onClick={() => setUploadMode('dual')}
+                  className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${uploadMode === 'dual'
+                      ? 'bg-blue-50 text-blue-700 shadow-sm'
+                      : 'text-gray-500 hover:bg-gray-50'
+                    }`}
+                >
+                  Ida e Volta Separados
+                </button>
+              </div>
+
               <div className="bg-white p-6 rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.05)] border border-gray-100 transition-shadow hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)]">
                 <h2 className="text-lg font-bold mb-4 text-[#00569e] flex items-center gap-2">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
-                  1. Enviar Arquivo
+                  1. Enviar Arquivo(s)
                 </h2>
-                <FileUpload onFileSelect={handleFileSelect} isLoading={isLoading} />
+
+                {uploadMode === 'single' ? (
+                  <>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Envie o bilhete completo (contendo ida e volta ou só ida).
+                      <span className="block text-xs text-gray-400 mt-1">Processamento automático ao selecionar.</span>
+                    </p>
+                    <FileUpload onFileSelect={onSingleUpload} isLoading={isLoading} />
+                  </>
+                ) : (
+                  <div className="space-y-4">
+                    <p className="text-sm text-gray-600 mb-2">
+                      Envie os vouchers separadamente e clique em "Gerar Email Unificado".
+                    </p>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Bilhete de Ida</label>
+                      <div className={fileOutbound ? "border-2 border-green-500 rounded-lg overflow-hidden" : ""}>
+                        <FileUpload onFileSelect={onOutboundUpload} isLoading={false} />
+                      </div>
+                      {fileOutbound && <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                        Arquivo de Ida selecionado
+                      </p>}
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Bilhete de Volta</label>
+                      <div className={fileInbound ? "border-2 border-green-500 rounded-lg overflow-hidden" : ""}>
+                        <FileUpload onFileSelect={onInboundUpload} isLoading={false} />
+                      </div>
+                      {fileInbound && <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                        Arquivo de Volta selecionado
+                      </p>}
+                    </div>
+
+                    <button
+                      onClick={handleProcess}
+                      disabled={!fileOutbound || !fileInbound || isLoading}
+                      className={`w-full py-3 px-4 rounded-lg font-bold text-white shadow-md transition-all flex items-center justify-center gap-2
+                        ${(!fileOutbound || !fileInbound || isLoading)
+                          ? 'bg-gray-300 cursor-not-allowed'
+                          : 'bg-[#00569e] hover:bg-[#00447c] shadow-lg hover:shadow-xl'
+                        }`}
+                    >
+                      {isLoading ? (
+                        <>
+                          <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                          Processando...
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
+                          Gerar Email Unificado
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
 
                 {error && (
                   <div className="mt-4 p-4 bg-red-50 text-red-700 border border-red-100 rounded-lg text-sm flex items-start gap-2">
@@ -194,5 +341,3 @@ const App: React.FC = () => {
     </div>
   );
 };
-
-export default App;
