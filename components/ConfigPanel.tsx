@@ -47,7 +47,7 @@ const ConfigPanel: React.FC = () => {
                             className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border"
                         >
                             <option value="gemini">Google Gemini (Recomendado)</option>
-                            {/* <option value="openai" disabled>OpenAI (Em breve)</option> */}
+                            <option value="openai">OpenAI (GPT-4o)</option>
                         </select>
                     </div>
 

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import FileUpload from './components/FileUpload';
 import ConfigPanel from './components/ConfigPanel';
-import { extractFlightData } from './services/geminiService';
+import { extractFlightData } from './services/aiFactory';
 import { generateEmailHtml } from './utils/htmlTemplate';
 
 const App: React.FC = () => {
