@@ -14,6 +14,13 @@ const getOpenAI = (apiKey: string) => {
 };
 
 export async function extractFlightDataOpenAI(fileBase64: string, mimeType: string, apiKey: string): Promise<ExtractedFlightData> {
+    // OpenAI Vision API does not support PDFs directly yet
+    if (mimeType === 'application/pdf') {
+        throw new Error(
+            "O provedor OpenAI (GPT-4o) não suporta arquivos PDF diretamente. Por favor, converta para uma imagem (JPG/PNG) ou tente utilizar o provedor Gemini."
+        );
+    }
+
     try {
         const ai = getOpenAI(apiKey);
 
