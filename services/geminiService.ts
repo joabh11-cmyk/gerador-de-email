@@ -1,7 +1,19 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { ExtractedFlightData } from "../types";
 
-const genAI = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Initialize lazily to prevent crash on load if key is missing
+let genAI: GoogleGenAI | null = null;
+
+const getGenAI = () => {
+  if (!genAI) {
+    const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error("API Key do Gemini não configurada. Verifique as variáveis de ambiente.");
+    }
+    genAI = new GoogleGenAI({ apiKey });
+  }
+  return genAI;
+};
 
 const connectionSchema: Schema = {
   type: Type.OBJECT,
@@ -22,8 +34,8 @@ const flightSegmentSchema: Schema = {
     destination: { type: Type.STRING, description: "Airport code or city name" },
     airline: { type: Type.STRING },
     pnr: { type: Type.STRING, description: "Booking reference / Localizador" },
-    connection: { 
-      type: Type.OBJECT, 
+    connection: {
+      type: Type.OBJECT,
       nullable: true,
       description: "If direct flight, set to null. If there is a connection, fill details.",
       properties: {
@@ -49,7 +61,8 @@ const extractionSchema: Schema = {
 
 export async function extractFlightData(fileBase64: string, mimeType: string): Promise<ExtractedFlightData> {
   try {
-    const response = await genAI.models.generateContent({
+    const ai = getGenAI();
+    const response = await ai.models.generateContent({
       model: "gemini-3-pro-preview",
       contents: {
         parts: [
