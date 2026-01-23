@@ -12,7 +12,8 @@ COPY . .
 
 # Accept API Key as build argument
 ARG GEMINI_API_KEY
-ENV GEMINI_API_KEY=$GEMINI_API_KEY
+# Vite only exposes vars starting with VITE_ to the client
+ENV VITE_GEMINI_API_KEY=$GEMINI_API_KEY
 
 # Build the app
 RUN npm run build

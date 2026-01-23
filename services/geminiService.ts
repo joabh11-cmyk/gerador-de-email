@@ -6,8 +6,10 @@ let genAI: GoogleGenAI | null = null;
 
 const getGenAI = () => {
   if (!genAI) {
-    const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
+    // Vite exposes env vars on import.meta.env
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
     if (!apiKey) {
+      console.error("DEBUG: API Key está vazia ou indefinida:", apiKey);
       throw new Error("API Key do Gemini não configurada. Verifique as variáveis de ambiente.");
     }
     genAI = new GoogleGenAI({ apiKey });
