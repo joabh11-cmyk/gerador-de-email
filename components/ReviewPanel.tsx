@@ -67,14 +67,56 @@ const ReviewPanel: React.FC<ReviewPanelProps> = ({ data, onConfirm, onCancel }) 
                 <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
                     <h3 className="font-bold text-blue-900 mb-3 flex items-center gap-2">✈️ Ida</h3>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                        <input placeholder="Origem" value={formData.outbound.origin} onChange={e => handleDeepChange('outbound', 'origin', e.target.value)} className="p-2 border rounded" />
-                        <input placeholder="Destino" value={formData.outbound.destination} onChange={e => handleDeepChange('outbound', 'destination', e.target.value)} className="p-2 border rounded" />
-                        <input placeholder="Voo" value={formData.outbound.flightNumber} onChange={e => handleDeepChange('outbound', 'flightNumber', e.target.value)} className="p-2 border rounded" />
-                        <input placeholder="Data" value={formData.outbound.date} onChange={e => handleDeepChange('outbound', 'date', e.target.value)} className="p-2 border rounded" />
-                        <input placeholder="Hora" value={formData.outbound.time} onChange={e => handleDeepChange('outbound', 'time', e.target.value)} className="p-2 border rounded" />
-                        <input placeholder="Cia Aérea" value={formData.outbound.airline} onChange={e => handleDeepChange('outbound', 'airline', e.target.value)} className="p-2 border rounded" />
-                        <input placeholder="Localizador" value={formData.outbound.pnr} onChange={e => handleDeepChange('outbound', 'pnr', e.target.value)} className="p-2 border rounded col-span-2" />
+                        <div>
+                            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Origem</label>
+                            <input value={formData.outbound.origin} onChange={e => handleDeepChange('outbound', 'origin', e.target.value)} className="w-full p-2 border rounded" />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Destino</label>
+                            <input value={formData.outbound.destination} onChange={e => handleDeepChange('outbound', 'destination', e.target.value)} className="w-full p-2 border rounded" />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Nº Voo</label>
+                            <input value={formData.outbound.flightNumber} onChange={e => handleDeepChange('outbound', 'flightNumber', e.target.value)} className="w-full p-2 border rounded" />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Data</label>
+                            <input value={formData.outbound.date} onChange={e => handleDeepChange('outbound', 'date', e.target.value)} className="w-full p-2 border rounded" />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Horário</label>
+                            <input value={formData.outbound.time} onChange={e => handleDeepChange('outbound', 'time', e.target.value)} className="w-full p-2 border rounded" />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Cia Aérea</label>
+                            <input value={formData.outbound.airline} onChange={e => handleDeepChange('outbound', 'airline', e.target.value)} className="w-full p-2 border rounded" />
+                        </div>
+                        <div className="col-span-2 md:col-span-3">
+                            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Localizador (PNR)</label>
+                            <input value={formData.outbound.pnr} onChange={e => handleDeepChange('outbound', 'pnr', e.target.value)} className="w-full p-2 border rounded bg-white font-mono" />
+                        </div>
                     </div>
+                    {formData.outbound.connection && (
+                        <div className="mt-3 pt-3 border-t border-blue-200">
+                            <p className="text-xs font-bold text-blue-800 mb-2">Conexão</p>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Tempo</label>
+                                    <input value={formData.outbound.connection.duration} onChange={e => {
+                                        const newConn = { ...formData.outbound.connection!, duration: e.target.value };
+                                        setFormData(prev => ({ ...prev, outbound: { ...prev.outbound, connection: newConn } }));
+                                    }} className="w-full p-2 border rounded" />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Voo Conexão</label>
+                                    <input value={formData.outbound.connection.flightNumber} onChange={e => {
+                                        const newConn = { ...formData.outbound.connection!, flightNumber: e.target.value };
+                                        setFormData(prev => ({ ...prev, outbound: { ...prev.outbound, connection: newConn } }));
+                                    }} className="w-full p-2 border rounded" />
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Flight Inbound */}
@@ -82,16 +124,37 @@ const ReviewPanel: React.FC<ReviewPanelProps> = ({ data, onConfirm, onCancel }) 
                     <div className="bg-green-50 p-4 rounded-lg border border-green-100">
                         <div className="flex justify-between mb-3">
                             <h3 className="font-bold text-green-900 flex items-center gap-2">✈️ Volta</h3>
-                            <button onClick={() => handleChange('inbound', null)} className="text-xs text-red-500 hover:text-red-700">Remover Volta</button>
+                            <button onClick={() => handleChange('inbound', null)} className="text-xs text-red-500 hover:text-red-700 font-medium">Remover Volta</button>
                         </div>
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                            <input placeholder="Origem" value={formData.inbound.origin} onChange={e => handleDeepChange('inbound', 'origin', e.target.value)} className="p-2 border rounded" />
-                            <input placeholder="Destino" value={formData.inbound.destination} onChange={e => handleDeepChange('inbound', 'destination', e.target.value)} className="p-2 border rounded" />
-                            <input placeholder="Voo" value={formData.inbound.flightNumber} onChange={e => handleDeepChange('inbound', 'flightNumber', e.target.value)} className="p-2 border rounded" />
-                            <input placeholder="Data" value={formData.inbound.date} onChange={e => handleDeepChange('inbound', 'date', e.target.value)} className="p-2 border rounded" />
-                            <input placeholder="Hora" value={formData.inbound.time} onChange={e => handleDeepChange('inbound', 'time', e.target.value)} className="p-2 border rounded" />
-                            <input placeholder="Cia Aérea" value={formData.inbound.airline} onChange={e => handleDeepChange('inbound', 'airline', e.target.value)} className="p-2 border rounded" />
-                            <input placeholder="Localizador" value={formData.inbound.pnr} onChange={e => handleDeepChange('inbound', 'pnr', e.target.value)} className="p-2 border rounded col-span-2" />
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Origem</label>
+                                <input value={formData.inbound.origin} onChange={e => handleDeepChange('inbound', 'origin', e.target.value)} className="w-full p-2 border rounded" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Destino</label>
+                                <input value={formData.inbound.destination} onChange={e => handleDeepChange('inbound', 'destination', e.target.value)} className="w-full p-2 border rounded" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Nº Voo</label>
+                                <input value={formData.inbound.flightNumber} onChange={e => handleDeepChange('inbound', 'flightNumber', e.target.value)} className="w-full p-2 border rounded" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Data</label>
+                                <input value={formData.inbound.date} onChange={e => handleDeepChange('inbound', 'date', e.target.value)} className="w-full p-2 border rounded" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Horário</label>
+                                <input value={formData.inbound.time} onChange={e => handleDeepChange('inbound', 'time', e.target.value)} className="w-full p-2 border rounded" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Cia Aérea</label>
+                                <input value={formData.inbound.airline} onChange={e => handleDeepChange('inbound', 'airline', e.target.value)} className="w-full p-2 border rounded" />
+                            </div>
+                            <div className="col-span-2 md:col-span-3">
+                                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Localizador (PNR)</label>
+                                <input value={formData.inbound.pnr} onChange={e => handleDeepChange('inbound', 'pnr', e.target.value)} className="w-full p-2 border rounded bg-white font-mono" />
+                            </div>
                         </div>
                     </div>
                 )}

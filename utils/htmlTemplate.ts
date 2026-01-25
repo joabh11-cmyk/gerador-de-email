@@ -43,14 +43,16 @@ const getCss = (style: TemplateStyle) => {
   `;
 
     if (style === 'minimal') {
+        // "New Classic" (Minimalist name, Modern Blue look)
         return `
         ${base}
-        .header { background-color: #1a1a1a; color: #ffffff; padding: 30px; border-bottom: 4px solid #000; text-align: center; }
-        .header h1 { font-weight: 300; text-transform: uppercase; letter-spacing: 2px; font-size: 18px; }
-        .flight-details { background-color: #ffffff; border: 1px solid #e0e0e0; }
-        .flight-details h2 { color: #333; border-bottom-color: #e0e0e0; text-transform: uppercase; font-size: 14px; letter-spacing: 1px; }
-        .footer a { color: #333; }
-        .btn { display: inline-block; padding: 12px 24px; background: #333; color: #fff; text-decoration: none; border-radius: 0; text-transform: uppercase; font-size: 11px; letter-spacing: 1px; }
+        .header { background-color: #00569e; background: linear-gradient(135deg, #00569e 0%, #00447c 100%); color: #ffffff; padding: 30px; text-align: center; }
+        .header img { width: 60px; height: 60px; border-radius: 50%; margin-right: 15px; vertical-align: middle; border: 2px solid rgba(255,255,255,0.2); }
+        .flight-details { background-color: #f8fbff; border: 1px solid #e1effe; color: #1e3a8a; }
+        .flight-details h2 { color: #00569e; border-bottom-color: #e1effe; }
+        .footer a { color: #00569e; }
+        .btn { display: inline-block; padding: 12px 28px; background: #00569e; color: #fff; text-decoration: none; border-radius: 50px; font-weight: bold; box-shadow: 0 4px 6px rgba(0, 86, 158, 0.2); transition: transform 0.2s; }
+        .btn:hover { transform: translateY(-1px); box-shadow: 0 6px 8px rgba(0, 86, 158, 0.3); }
     `;
     } else if (style === 'urgent') {
         return `
@@ -63,16 +65,15 @@ const getCss = (style: TemplateStyle) => {
         .btn { display: inline-block; padding: 12px 24px; background: #d32f2f; color: #fff; text-decoration: none; border-radius: 6px; font-weight: bold; box-shadow: 0 2px 4px rgba(211, 47, 47, 0.3); }
     `;
     } else {
-        // Classic Blue
+        // "Original" (Classic Name, Original Blue Look)
         return `
         ${base}
-        .header { background-color: #00569e; background: linear-gradient(135deg, #00569e 0%, #00447c 100%); color: #ffffff; padding: 30px; text-align: center; }
-        .header img { width: 60px; height: 60px; border-radius: 50%; margin-right: 15px; vertical-align: middle; border: 2px solid rgba(255,255,255,0.2); }
-        .flight-details { background-color: #f8fbff; border: 1px solid #e1effe; color: #1e3a8a; }
-        .flight-details h2 { color: #00569e; border-bottom-color: #e1effe; }
+        .header { background-color: #00569e; color: #ffffff; padding: 25px; text-align: center; }
+        .header img { width: 50px; height: 50px; border-radius: 50%; margin-right: 15px; vertical-align: middle; }
+        .flight-details { background-color: #f0f7ff; border: 1px solid #cce4ff; color: #004085; }
+        .flight-details h2 { color: #00569e; border-bottom-color: #cce4ff; }
         .footer a { color: #00569e; }
-        .btn { display: inline-block; padding: 12px 28px; background: #00569e; color: #fff; text-decoration: none; border-radius: 50px; font-weight: bold; box-shadow: 0 4px 6px rgba(0, 86, 158, 0.2); transition: transform 0.2s; }
-        .btn:hover { transform: translateY(-1px); box-shadow: 0 6px 8px rgba(0, 86, 158, 0.3); }
+        .btn { display: inline-block; padding: 12px 24px; background: #00569e; color: #fff; text-decoration: none; border-radius: 50px; font-weight: bold; }
     `;
     }
 };
@@ -86,11 +87,12 @@ export const generateEmailHtml = (data: ExtractedFlightData, style: TemplateStyl
     const logoUrl = "https://i.ibb.co/4ZRSkhmj/Nova-Logo-3.png";
 
     let headerContent = '';
-    if (style === 'minimal') {
-        headerContent = `<h1>Confirmação de Reserva</h1>`;
-    } else if (style === 'urgent') {
+
+    // Header Logic
+    if (style === 'urgent') {
         headerContent = `<h1>⚠️ Detalhes Importantes da Viagem</h1>`;
-    } else {
+    } else if (style === 'minimal') {
+        // New Classic (Minimal) -> Icon + Title + Subtitle
         headerContent = `
         <div style="display: flex; align-items: center; justify-content: center;">
             <img src="${logoUrl}" alt="Logo">
@@ -98,8 +100,13 @@ export const generateEmailHtml = (data: ExtractedFlightData, style: TemplateStyl
                 <h1 style="font-size: 20px; text-transform: uppercase; letter-spacing: 1px;">Clube do Voo</h1>
                 <p style="margin: 0; opacity: 0.8; font-size: 12px; font-weight: normal;">Consultoria de Viagens</p>
             </div>
-        </div>
-    `;
+        </div>`;
+    } else {
+        // Classic (Original) -> Icon + Title
+        headerContent = `
+             <img src="${logoUrl}" alt="Logo" style="vertical-align: middle;">
+             <span style="vertical-align: middle; font-weight: bold; font-size: 20px;">Clube do Voo Viagens</span>
+        `;
     }
 
     return `<!DOCTYPE html>
