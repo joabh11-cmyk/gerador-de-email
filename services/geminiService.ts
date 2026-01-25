@@ -42,6 +42,8 @@ const flightSegmentSchema: Schema = {
     destination: { type: Type.STRING, description: "Airport code or city name" },
     airline: { type: Type.STRING },
     pnr: { type: Type.STRING, description: "Booking reference / Localizador" },
+    seat: { type: Type.STRING, description: "Selected seat (e.g. 12A). If not found, leave empty." },
+    boardingTime: { type: Type.STRING, description: "Boarding time in hh:mm format. If not found, estimate 40-60 mins before flight time." },
     connection: {
       type: Type.OBJECT,
       nullable: true,
@@ -62,7 +64,12 @@ const extractionSchema: Schema = {
     greetingTitle: { type: Type.STRING, description: "One of: Prezado, Prezada, Prezados, Prezadas" },
     pronoun: { type: Type.STRING, description: "The object pronoun for 'find you well'. Use 'o' (masc sing), 'a' (fem sing), 'os' (masc plural), 'as' (fem plural)." },
     outbound: flightSegmentSchema,
-    inbound: { ...flightSegmentSchema, nullable: true }
+    inbound: { ...flightSegmentSchema, nullable: true },
+    additionalSegments: { 
+      type: Type.ARRAY, 
+      items: flightSegmentSchema,
+      description: "Any additional flight segments beyond outbound and inbound."
+    }
   },
   required: ["passengerNames", "greetingTitle", "pronoun", "outbound"]
 };
@@ -93,6 +100,9 @@ export async function extractFlightData(fileBase64: string, mimeType: string): P
             6. DATES & TIMES: Format dates as dd/mm/aaaa and times as hh:mm. Pay attention to "Next Day" (+1) arrival times, but extract the time exactly as shown.
             7. ORIGIN/DESTINATION: Use the City Name (e.g. "São Paulo", "Nova York") rather than just the code if available.
             8. AIRLINES: Use the full name of the operating airline.
+            9. SEATS: Extract the seat number if available.
+            10. BOARDING TIME: Extract the boarding time. If not explicitly mentioned, calculate it as 40 minutes before the departure time.
+            11. MULTIPLE SEGMENTS: If the document contains more than 2 flights (e.g. a multi-city trip), put the first in 'outbound', the second in 'inbound', and any others in 'additionalSegments'.
             `
           }
         ]

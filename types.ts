@@ -11,6 +11,8 @@ export interface FlightSegment {
   destination: string;
   airline: string;
   pnr: string; // Localizador
+  seat?: string; // Assento selecionado
+  boardingTime?: string; // Horário de embarque
   connection?: ConnectionDetails | null;
 }
 
@@ -20,6 +22,7 @@ export interface ExtractedFlightData {
   pronoun: string; // o, a, os, as (for "o encontre bem")
   outbound: FlightSegment;
   inbound?: FlightSegment | null;
+  additionalSegments?: FlightSegment[]; // Para Trecho 3, 4, etc.
 }
 
 export interface HistoryItem {

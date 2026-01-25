@@ -13,7 +13,7 @@ import { HistoryItem, ExtractedFlightData } from './types';
 import emailjs from '@emailjs/browser';
 
 const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'generator' | 'config' | 'dashboard'>('generator');
+  const [activeTab, setActiveTab] = useState<'generator' | 'reminder' | 'config' | 'dashboard'>('generator');
   const [isLoading, setIsLoading] = useState(false);
   const [htmlOutput, setHtmlOutput] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -121,7 +121,8 @@ const App: React.FC = () => {
 
   const handleConfirmReview = (data: ExtractedFlightData) => {
     setExtractedData(data);
-    const html = generateEmailHtml(data, selectedTemplate);
+    const templateToUse = activeTab === 'reminder' ? 'reminder' : selectedTemplate;
+    const html = generateEmailHtml(data, templateToUse);
     setHtmlOutput(html);
     setCurrentStep('result');
     saveToHistory(data, html);
@@ -270,7 +271,7 @@ const App: React.FC = () => {
           {/* Navigation Tabs */}
           <div className="flex border-b border-gray-200 mb-8 max-w-2xl">
             <button
-              onClick={() => setActiveTab('generator')}
+              onClick={() => { setActiveTab('generator'); setSelectedTemplate('classic'); }}
               type="button"
               className={`py-3 px-6 text-sm font-semibold border-b-2 transition-all duration-200 ${activeTab === 'generator'
                 ? 'border-[#00569e] text-[#00569e]'
@@ -278,6 +279,16 @@ const App: React.FC = () => {
                 }`}
             >
               Gerador
+            </button>
+            <button
+              onClick={() => { setActiveTab('reminder'); setSelectedTemplate('reminder'); }}
+              type="button"
+              className={`py-3 px-6 text-sm font-semibold border-b-2 transition-all duration-200 ${activeTab === 'reminder'
+                ? 'border-[#00569e] text-[#00569e]'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+            >
+              Lembrete de Voo ✈️
             </button>
             <button
               onClick={() => setActiveTab('dashboard')}

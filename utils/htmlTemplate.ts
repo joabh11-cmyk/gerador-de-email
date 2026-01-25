@@ -1,7 +1,7 @@
 import { ExtractedFlightData, FlightSegment } from '../types';
 import { getActiveAgent } from '../services/configService';
 
-export type TemplateStyle = 'classic' | 'minimal' | 'urgent';
+export type TemplateStyle = 'classic' | 'minimal' | 'urgent' | 'reminder';
 
 const generateFlightSectionHtml = (title: string, segment: FlightSegment | null | undefined, style: TemplateStyle): string => {
     if (!segment) return '';
@@ -61,6 +61,15 @@ const getCss = (style: TemplateStyle) => {
       .flight-details { background-color: #fff5f5; border-left: 5px solid #d32f2f; color: #b71c1c; padding: 20px; border-radius: 8px; margin: 20px 0; }
       .flight-details h2 { color: #c62828; margin-top: 0; font-size: 18px; border-bottom: 1px solid #ef9a9a; padding-bottom: 10px; margin-bottom: 15px; }
   `;
+    } else if (style === 'reminder') {
+        return `
+      ${base}
+      .header { background-color: #00569e; color: #ffffff; padding: 20px; text-align: center; }
+      .header img { width: 60px; height: 60px; border-radius: 50%; margin-bottom: 10px; }
+      .flight-details { background-color: #ffffff; border: 1px solid #eee; padding: 15px; border-radius: 8px; margin: 15px 0; }
+      .flight-details h3 { color: #00569e; margin-top: 0; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+      .info-box { background-color: #fff7ed; border: 1px solid #ffedd5; padding: 15px; border-radius: 8px; margin: 20px 0; }
+  `;
     } else {
         // CLASSIC (Exact Original)
         return `
@@ -112,7 +121,76 @@ export const generateEmailHtml = (data: ExtractedFlightData, style: TemplateStyl
 
     let bodyContent = '';
 
-    if (style === 'classic') {
+    if (style === 'reminder') {
+        const formatDateLong = (dateStr: string) => {
+            try {
+                const [day, month, year] = dateStr.split('/');
+                const months = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+                return `${day} de ${months[parseInt(month) - 1]} de ${year}`;
+            } catch (e) { return dateStr; }
+        };
+
+        const renderReminderSegment = (title: string, segment: FlightSegment | null | undefined) => {
+            if (!segment) return '';
+            return `
+            <div class="flight-details">
+                <h3>${title}</h3>
+                <p>🗓️ <strong>Data do Voo:</strong> ${formatDateLong(segment.date)}</p>
+                <p>✈️ <strong>Número do voo:</strong> ${segment.flightNumber}</p>
+                <p>⏰ <strong>Horário do Voo:</strong> ${segment.time}</p>
+                <p>⚠️ <strong>Embarque inicia:</strong> ${segment.boardingTime || '--:--'}</p>
+                <p>💺 <strong>Assento escolhido:</strong> ${segment.seat || 'Não selecionado'}</p>
+                <p>🪪 Leve documento de identificação com foto.</p>
+                <p>🚨 Chegue com antecedência mínima de 2h antes do início do embarque.</p>
+            </div>`;
+        };
+
+        let segmentsHtml = renderReminderSegment('Trecho 1:', data.outbound);
+        if (data.inbound) segmentsHtml += renderReminderSegment('Trecho 2:', data.inbound);
+        if (data.additionalSegments) {
+            data.additionalSegments.forEach((s, i) => {
+                segmentsHtml += renderReminderSegment(`Trecho ${i + 3}:`, s);
+            });
+        }
+
+        bodyContent = `
+        <div class="email-container">
+            <div class="header">
+                <img src="https://i.ibb.co/4ZRSkhmj/Nova-Logo-3.png" alt="Logo">
+                <h1>Lembrete de Viagem - Clube do Voo</h1>
+            </div>
+            <div class="content">
+                <p>📩 <strong>E-MAIL</strong></p>
+                <p>Olá, <strong>${data.passengerNames}</strong></p>
+                <p>Sua viagem está bem próxima!</p>
+                <p>Lembrete para as suas viagens:</p>
+                
+                ${segmentsHtml}
+
+                <div class="info-box">
+                    <p><strong>A bagagem que vocês podem levar é:</strong></p>
+                    <p>• 1 bolsa ou mochila pequena para levar debaixo do seu assento;</p>
+                    <p>• 1 bagagem de mão (10kg).</p>
+                </div>
+
+                <p>Para conferir os detalhes das suas viagens, seu código de reserva é: <strong>${data.outbound.pnr}</strong>.</p>
+                
+                <p>Se vocês tiverem alguma dúvida ou precisarem de ajuda, é só nos chamar no WhatsApp <strong>75 9 9202-0012</strong> ou no nosso e-mail <strong>suporte@clubedovooviagens.com.br</strong> 😉🧡</p>
+                
+                <p>Desejamos uma excelente viagem!<br>
+                Agradecemos a preferência e a confiança!</p>
+
+                <div class="footer">
+                    <p>Atenciosamente,<br>
+                    <strong>Joabh Souza</strong><br>
+                    Consultor de Viagens Clube do Voo Viagens</p>
+                    <p>🌍 <a href="https://www.clubedovooviagens.com.br">Clube do Voo Viagens</a><br>
+                    www.clubedovooviagens.com.br</p>
+                    <p style="font-size: 10px; color: #999;">⚠️ Este é um e-mail automático, por favor, não responda diretamente a este e-mail. Para entrar em contato conosco, utilize os canais de atendimento mencionados acima.</p>
+                </div>
+            </div>
+        </div>`;
+    } else if (style === 'classic') {
         bodyContent = `
     <div class="email-container">
       <div class="header">
