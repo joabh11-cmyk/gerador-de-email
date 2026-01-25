@@ -1,26 +1,16 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { ExtractedFlightData } from "../types";
 
-// Initialize lazily to prevent crash on load if key is missing
-let genAI: GoogleGenAI | null = null;
+// We'll create the instance per request or cache it if the key is the same
+let lastApiKey: string | null = null;
+let genAIInstance: GoogleGenAI | null = null;
 
-const getGenAI = () => {
-  if (!genAI) {
-    // 1. Try LocalStorage (User Configured)
-    let apiKey = localStorage.getItem('flight_extractor_api_key');
-
-    // 2. Try Env Vars (Server/Build Configured)
-    if (!apiKey) {
-      apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-    }
-
-    if (!apiKey) {
-      console.error("DEBUG: API Key está vazia ou indefinida:", apiKey);
-      throw new Error("API Key não encontrada. Configure-a na aba 'Configurações' ou no ambiente.");
-    }
-    genAI = new GoogleGenAI({ apiKey });
+const getGenAI = (apiKey: string) => {
+  if (apiKey !== lastApiKey || !genAIInstance) {
+    genAIInstance = new GoogleGenAI({ apiKey });
+    lastApiKey = apiKey;
   }
-  return genAI;
+  return genAIInstance;
 };
 
 const connectionSchema: Schema = {
@@ -74,9 +64,16 @@ const extractionSchema: Schema = {
   required: ["passengerNames", "greetingTitle", "pronoun", "outbound"]
 };
 
-export async function extractFlightData(fileBase64: string, mimeType: string): Promise<ExtractedFlightData> {
+export async function extractFlightData(fileBase64: string, mimeType: string, apiKey?: string): Promise<ExtractedFlightData> {
   try {
-    const ai = getGenAI();
+    // If apiKey is not provided, try to get it from localStorage as fallback
+    const finalApiKey = apiKey || localStorage.getItem('flight_extractor_api_key') || import.meta.env.VITE_GEMINI_API_KEY;
+    
+    if (!finalApiKey) {
+      throw new Error("API Key não encontrada. Configure-a na aba 'Configurações'.");
+    }
+
+    const ai = getGenAI(finalApiKey);
     const response = await ai.models.generateContent({
       model: "gemini-3-pro-preview",
       contents: {
