@@ -1,4 +1,5 @@
 import { ExtractedFlightData, FlightSegment } from '../types';
+import { getActiveAgent } from '../services/configService';
 
 export type TemplateStyle = 'classic' | 'minimal' | 'urgent';
 
@@ -29,7 +30,7 @@ const generateFlightSectionHtml = (title: string, segment: FlightSegment | null 
 };
 
 const getCss = (style: TemplateStyle) => {
-    // Base styles are shared, but Classic has specific overrides to match the exact original
+    // Base styles
     const base = `
         body { font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f4; }
         .email-container { width: 100%; max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); }
@@ -37,6 +38,10 @@ const getCss = (style: TemplateStyle) => {
         .footer { background-color: #f4f4f4; color: #777777; text-align: center; padding: 10px 20px; font-size: 12px; }
         .footer a { color: #3871c1; text-decoration: none; }
         p { line-height: 1.6; }
+        @media print {
+            body { background: white; }
+            .email-container { box-shadow: none; max-width: 100%; }
+        }
   `;
 
     if (style === 'minimal') {
@@ -72,6 +77,18 @@ const getCss = (style: TemplateStyle) => {
 
 export const generateEmailHtml = (data: ExtractedFlightData, style: TemplateStyle = 'classic'): string => {
     const css = getCss(style);
+    const agent = getActiveAgent();
+
+    // Footer Signature
+    const footerSignature = `
+              <p style="margin-top: 30px;">Atenciosamente,</p>
+              <p><strong>${agent.name}</strong>,<br>
+              ${agent.role},<br>
+              ${agent.phone}</p>
+              <p><a href="https://www.clubedovooviagens.com.br">Clube do Voo Viagens</a><br>
+              www.clubedovooviagens.com.br</p>
+              <p><em>Este é um email automático, por favor não responda diretamente a este email. Para entrar em contato conosco, utilize os canais de atendimento mencionados acima.</em></p>
+    `;
 
     // Helper for flight segments to match the EXACT HTML structure requested for Classic
     const renderSegmentClassic = (title: string, segment: FlightSegment | null | undefined) => {
@@ -91,13 +108,6 @@ export const generateEmailHtml = (data: ExtractedFlightData, style: TemplateStyl
               <p><strong>Cia Aérea:</strong> ${segment.airline}</p>
               <p><strong>Localizador da Reserva:</strong> ${segment.pnr}</p>${conn}
           </div>`;
-    };
-
-    // Keep the modern structure for other styles
-    const renderSegmentModern = (title: string, segment: FlightSegment | null | undefined) => {
-        return generateFlightSectionHtml(title, segment, style);
-        // Note: We need to make sure generateFlightSectionHtml is available or inline it. 
-        // Ideally I should utilize the one defined above this function in the file.
     };
 
     let bodyContent = '';
@@ -129,18 +139,13 @@ export const generateEmailHtml = (data: ExtractedFlightData, style: TemplateStyl
           <p>Um mundo de novas experiências espera por você. Boa viagem!</p>
 
           <div class="footer">
-              <p>Atenciosamente,</p>
-              <p>Joabh Souza,</p>
-              <p>Consultor de Viagens Clube do Voo Viagens,</p>
-              <p><a href="https://www.clubedovooviagens.com.br">Clube do Voo Viagens</a></p>
-              <p>www.clubedovooviagens.com.br</p>
-              <p><em>Este é um email automático, por favor não responda diretamente a este email. Para entrar em contato conosco, utilize os canais de atendimento mencionados acima.</em></p>
+              ${footerSignature}
           </div>
       </div>
   </div>`;
 
     } else {
-        // Modern/Urgent Logic (Simplified for brevity, using previous logic)
+        // Modern/Urgent Logic
         const outboundHtml = generateFlightSectionHtml('✈️ Voo de Ida', data.outbound, style);
         const inboundHtml = generateFlightSectionHtml('✈️ Voo de Volta', data.inbound, style);
 

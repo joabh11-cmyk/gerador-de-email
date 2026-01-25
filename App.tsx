@@ -3,14 +3,18 @@ import FileUpload from './components/FileUpload';
 import ConfigPanel from './components/ConfigPanel';
 import HistoryPanel from './components/HistoryPanel';
 import ReviewPanel from './components/ReviewPanel';
+import DashboardPanel from './components/DashboardPanel';
 import { extractFlightData } from './services/aiFactory';
 import { generateEmailHtml, TemplateStyle } from './utils/htmlTemplate';
 import { generateWhatsAppText } from './utils/whatsappTemplate';
 import { saveToHistory } from './services/historyService';
+import { getConfig } from './services/configService';
 import { HistoryItem, ExtractedFlightData } from './types';
+import html2pdf from 'html2pdf.js';
+import emailjs from '@emailjs/browser';
 
 const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'generator' | 'config'>('generator');
+  const [activeTab, setActiveTab] = useState<'generator' | 'config' | 'dashboard'>('generator');
   const [isLoading, setIsLoading] = useState(false);
   const [htmlOutput, setHtmlOutput] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -26,6 +30,9 @@ const App: React.FC = () => {
   const [fileSingle, setFileSingle] = useState<File | null>(null);
   const [fileOutbound, setFileOutbound] = useState<File | null>(null);
   const [fileInbound, setFileInbound] = useState<File | null>(null);
+
+  // Email Sending State
+  const [isSending, setIsSending] = useState(false);
 
   // --- Logic Helpers ---
 
@@ -72,7 +79,7 @@ const App: React.FC = () => {
       }
 
       setExtractedData(finalData);
-      setCurrentStep('review'); // Go to Review Mode instead of result immediately
+      setCurrentStep('review');
 
     } catch (err: any) {
       console.error(err);
@@ -85,9 +92,6 @@ const App: React.FC = () => {
   const onSingleUpload = (file: File) => {
     setFileSingle(file);
     setUploadMode('single');
-    // Auto trigger not recommended for this flow as we want to separate "Drop" from "Process" maybe? 
-    // Actually user preferred auto-trigger in single mode. But now we have review. 
-    // Let's keep auto trigger of process, but it just goes to Review.
 
     setIsLoading(true);
     setError(null);
@@ -131,10 +135,6 @@ const App: React.FC = () => {
   };
 
   const handleHistorySelect = (item: HistoryItem) => {
-    // History items don't store raw data currently (only HTML), so we can just show the HTML
-    // Limitation: Can't re-edit history items easily unless we stored 'data' in history.
-    // Current system stores 'data' in HistoryItem, let's check types.ts... 
-    // types.ts: interface HistoryItem { ... data: ExtractedFlightData; ... } -> YES IT DOES!
     setExtractedData(item.data);
     setHtmlOutput(item.html);
     setCurrentStep('result');
@@ -152,6 +152,63 @@ const App: React.FC = () => {
       const text = generateWhatsAppText(extractedData);
       navigator.clipboard.writeText(text);
       alert('Texto para WhatsApp copiado!');
+    }
+  };
+
+  const handleDownloadPDF = () => {
+    if (!htmlOutput) return;
+    const element = document.createElement('div');
+    element.innerHTML = htmlOutput;
+
+    const opt = {
+      margin: 0,
+      filename: `Passagem_${extractedData?.passengerNames || 'Cliente'}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2 },
+      jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+    };
+
+    html2pdf().from(element).set(opt).save();
+  };
+
+  const handleSendEmail = async () => {
+    const config = getConfig();
+    if (!config.emailJsServiceId || !config.emailJsTemplateId || !config.emailJsPublicKey) {
+      alert("Configure o EmailJS na aba Configurações primeiro!");
+      setActiveTab('config');
+      return;
+    }
+
+    if (!extractedData) return;
+
+    const userEmail = prompt("Digite o email do cliente:");
+    if (!userEmail) return;
+
+    setIsSending(true);
+    try {
+      // Note: This relies on the template in EmailJS expecting variables like {{html_content}} or similar
+      // Or we can just send the text details. Sending Raw HTML via EmailJS usually requires a specific template setup.
+      // For simplicity, we send a notification with the link or summary, or we assume the user set up a template that accepts 'message'
+      // A better approach for this MVP is sending the Text summary.
+      const templateParams = {
+        to_email: userEmail,
+        to_name: extractedData.passengerNames,
+        message: generateWhatsAppText(extractedData), // Fallback to text version for reliability
+        html_content: htmlOutput // If the user template supports it
+      };
+
+      await emailjs.send(
+        config.emailJsServiceId,
+        config.emailJsTemplateId,
+        templateParams,
+        config.emailJsPublicKey
+      );
+      alert("Email enviado com sucesso!");
+    } catch (err) {
+      console.error("Email Error:", err);
+      alert("Falha ao enviar email via EmailJS. Verifique suas chaves.");
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -194,6 +251,15 @@ const App: React.FC = () => {
             Gerador
           </button>
           <button
+            onClick={() => setActiveTab('dashboard')}
+            className={`py-3 px-6 text-sm font-semibold border-b-2 transition-all duration-200 ${activeTab === 'dashboard'
+              ? 'border-[#00569e] text-[#00569e]'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+          >
+            Dashboard 📊
+          </button>
+          <button
             onClick={() => setActiveTab('config')}
             className={`py-3 px-6 text-sm font-semibold border-b-2 transition-all duration-200 ${activeTab === 'config'
               ? 'border-[#00569e] text-[#00569e]'
@@ -206,6 +272,8 @@ const App: React.FC = () => {
 
         {activeTab === 'config' ? (
           <ConfigPanel />
+        ) : activeTab === 'dashboard' ? (
+          <DashboardPanel />
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
 
@@ -302,6 +370,7 @@ const App: React.FC = () => {
               {/* Toolbar in Result Mode */}
               {currentStep === 'result' && (
                 <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-wrap gap-4 items-center justify-between animate-in fade-in slide-in-from-top-2">
+                  {/* Template Select */}
                   <div className="flex items-center gap-3">
                     <span className="text-sm font-semibold text-gray-600">Modelo:</span>
                     <div className="flex bg-gray-100 p-1 rounded-lg">
@@ -317,13 +386,33 @@ const App: React.FC = () => {
                     </div>
                   </div>
 
-                  <button
-                    onClick={copyWhatsApp}
-                    className="px-4 py-2 bg-[#25D366] hover:bg-[#128C7E] text-white text-sm font-bold rounded-lg shadow-sm flex items-center gap-2 transition-colors"
-                  >
-                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.304-5.235c0-5.421 4.409-9.85 9.85-9.85 2.636 0 5.118 1.026 6.982 2.887 1.865 1.862 2.891 4.345 2.891 6.975 0 5.429-4.417 9.855-9.845 9.855" /></svg>
-                    Copiar p/ WhatsApp
-                  </button>
+                  {/* Action Buttons */}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={copyWhatsApp}
+                      title="Copiar para WhatsApp"
+                      className="p-2 bg-green-50 text-green-600 hover:bg-green-100 rounded-lg transition-colors border border-green-200"
+                    >
+                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.304-5.235c0-5.421 4.409-9.85 9.85-9.85 2.636 0 5.118 1.026 6.982 2.887 1.865 1.862 2.891 4.345 2.891 6.975 0 5.429-4.417 9.855-9.845 9.855" /></svg>
+                    </button>
+
+                    <button
+                      onClick={handleDownloadPDF}
+                      title="Baixar PDF"
+                      className="p-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors border border-red-200"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                    </button>
+
+                    <button
+                      onClick={handleSendEmail}
+                      disabled={isSending}
+                      title="Enviar por Email"
+                      className={`p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors border border-blue-200 ${isSending ? 'opacity-50 cursor-wait' : ''}`}
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                    </button>
+                  </div>
                 </div>
               )}
 

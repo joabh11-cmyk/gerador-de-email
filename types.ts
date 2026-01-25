@@ -27,4 +27,23 @@ export interface HistoryItem {
   timestamp: number;
   data: ExtractedFlightData;
   html: string;
+  agentName?: string; // Who generated this?
+}
+
+export interface AgentProfile {
+  id: string;
+  name: string;
+  role: string; // e.g. "Consultor de Viagens"
+  phone: string; // e.g. "(75) 99202-0012"
+  email: string;
+  isActive: boolean;
+}
+
+export interface AppConfig {
+  geminiKey: string;
+  openaiKey: string;
+  provider: 'gemini' | 'openai';
+  emailJsServiceId?: string;
+  emailJsTemplateId?: string;
+  emailJsPublicKey?: string;
 }
