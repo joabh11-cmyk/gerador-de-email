@@ -156,6 +156,7 @@ const ConfigPanel: React.FC = () => {
                             <div>
                                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Service ID</label>
                                 <input
+                                    type="password"
                                     value={config.emailJsServiceId || ''}
                                     onChange={e => setConfig({ ...config, emailJsServiceId: e.target.value })}
                                     className="w-full p-2 border rounded text-sm font-mono"
@@ -165,6 +166,7 @@ const ConfigPanel: React.FC = () => {
                             <div>
                                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Template ID</label>
                                 <input
+                                    type="password"
                                     value={config.emailJsTemplateId || ''}
                                     onChange={e => setConfig({ ...config, emailJsTemplateId: e.target.value })}
                                     className="w-full p-2 border rounded text-sm font-mono"
@@ -174,6 +176,7 @@ const ConfigPanel: React.FC = () => {
                             <div>
                                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Public Key</label>
                                 <input
+                                    type="password"
                                     value={config.emailJsPublicKey || ''}
                                     onChange={e => setConfig({ ...config, emailJsPublicKey: e.target.value })}
                                     className="w-full p-2 border rounded text-sm font-mono"
@@ -199,7 +202,7 @@ const ConfigPanel: React.FC = () => {
                     <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    Configurações salvas!
+                    Configurações salvas (Protegidas)
                 </div>
             )}
         </div>
