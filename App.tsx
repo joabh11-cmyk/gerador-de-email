@@ -121,8 +121,8 @@ const App: React.FC = () => {
 
   const handleConfirmReview = (data: ExtractedFlightData) => {
     setExtractedData(data);
-    const templateToUse = activeTab === 'reminder' ? 'reminder' : selectedTemplate;
-    const html = generateEmailHtml(data, templateToUse);
+    const isReminder = activeTab === 'reminder';
+    const html = generateEmailHtml(data, selectedTemplate, isReminder);
     setHtmlOutput(html);
     setCurrentStep('result');
     saveToHistory(data, html);
@@ -132,7 +132,8 @@ const App: React.FC = () => {
   const handleTemplateChange = (style: TemplateStyle) => {
     setSelectedTemplate(style);
     if (extractedData) {
-      const html = generateEmailHtml(extractedData, style);
+      const isReminder = activeTab === 'reminder';
+      const html = generateEmailHtml(extractedData, style, isReminder);
       setHtmlOutput(html);
     }
   };
@@ -152,7 +153,8 @@ const App: React.FC = () => {
 
   const copyWhatsApp = () => {
     if (extractedData) {
-      const text = generateWhatsAppText(extractedData);
+      const isReminder = activeTab === 'reminder';
+      const text = generateWhatsAppText(extractedData, isReminder);
       navigator.clipboard.writeText(text);
       alert('Texto para WhatsApp copiado!');
     }
@@ -205,10 +207,11 @@ const App: React.FC = () => {
     if (!userEmail) return;
 
     // Populate hidden fields
+    const isReminder = activeTab === 'reminder';
     setFormValues({
       to_email: userEmail,
       to_name: extractedData.passengerNames,
-      message: generateWhatsAppText(extractedData),
+      message: generateWhatsAppText(extractedData, isReminder),
       html_content: htmlOutput || ''
     });
 
