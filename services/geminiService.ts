@@ -86,10 +86,13 @@ export async function extractFlightData(fileBase64: string, mimeType: string): P
             
             Strictly follow these rules:
             1. If it is a one-way ticket, set 'inbound' to null.
-            2. If it is a direct flight, set 'connection' to null.
-            3. Determine the correct greeting title (Prezado/Prezada/Prezados/Prezadas) based on names.
-            4. Determine the correct pronoun (o/a/os/as) for the phrase "Esperamos que este email [pronoun] encontre bem".
-            5. Format dates as dd/mm/aaaa and times as hh:mm.
+            2. If it is a direct flight, set 'connection' to null. If there are stops, summarize the connection details (duration and flight number of connecting flight).
+            3. PASSENGER NAMES: Extract the full names. If multiple passengers, join them naturally (e.g. "João Silva e Maria Souza"). Capitalize properly.
+            4. GREETING: Determine the correct greeting (Prezado/Prezada/Prezados/Prezadas) based on the gender and number of passengers.
+            5. PRONOUN: Choose 'o', 'a', 'os', or 'as' for the phrase "Esperamos que este email [pronoun] encontre bem".
+            6. DATES & TIMES: Format dates as dd/mm/aaaa and times as hh:mm. Pay attention to "Next Day" (+1) arrival times, but extract the time exactly as shown.
+            7. ORIGIN/DESTINATION: Use the City Name (e.g. "São Paulo", "Nova York") rather than just the code if available.
+            8. AIRLINES: Use the full name of the operating airline.
             `
           }
         ]

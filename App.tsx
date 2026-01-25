@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import FileUpload from './components/FileUpload';
 import ConfigPanel from './components/ConfigPanel';
 import HistoryPanel from './components/HistoryPanel';
+import ReviewPanel from './components/ReviewPanel';
 import { extractFlightData } from './services/aiFactory';
-import { generateEmailHtml } from './utils/htmlTemplate';
+import { generateEmailHtml, TemplateStyle } from './utils/htmlTemplate';
+import { generateWhatsAppText } from './utils/whatsappTemplate';
 import { saveToHistory } from './services/historyService';
 import { HistoryItem, ExtractedFlightData } from './types';
 
@@ -14,13 +16,19 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [historyRefresh, setHistoryRefresh] = useState(0);
 
+  // Workflow State
+  const [currentStep, setCurrentStep] = useState<'upload' | 'review' | 'result'>('upload');
+  const [extractedData, setExtractedData] = useState<ExtractedFlightData | null>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<TemplateStyle>('classic');
+
   // Upload Mode State
   const [uploadMode, setUploadMode] = useState<'single' | 'dual'>('single');
   const [fileSingle, setFileSingle] = useState<File | null>(null);
   const [fileOutbound, setFileOutbound] = useState<File | null>(null);
   const [fileInbound, setFileInbound] = useState<File | null>(null);
 
-  // Helper to process a single file and return data
+  // --- Logic Helpers ---
+
   const processFile = async (file: File): Promise<ExtractedFlightData> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -52,25 +60,19 @@ const App: React.FC = () => {
       } else {
         if (!fileOutbound || !fileInbound) throw new Error("Por favor, envie os arquivos de Ida e Volta.");
 
-        // Process both in parallel
         const [dataIda, dataVolta] = await Promise.all([
           processFile(fileOutbound),
           processFile(fileInbound)
         ]);
 
-        // Merge Logic
-        // We take the passenger names and greeting from the Outbound ticket
-        // We map the 'outbound' result of the second file to 'inbound' of the final data
         finalData = {
           ...dataIda,
           inbound: dataVolta.outbound
         };
       }
 
-      const generatedHtml = generateEmailHtml(finalData);
-      setHtmlOutput(generatedHtml);
-      saveToHistory(finalData, generatedHtml);
-      setHistoryRefresh(prev => prev + 1);
+      setExtractedData(finalData);
+      setCurrentStep('review'); // Go to Review Mode instead of result immediately
 
     } catch (err: any) {
       console.error(err);
@@ -83,17 +85,16 @@ const App: React.FC = () => {
   const onSingleUpload = (file: File) => {
     setFileSingle(file);
     setUploadMode('single');
+    // Auto trigger not recommended for this flow as we want to separate "Drop" from "Process" maybe? 
+    // Actually user preferred auto-trigger in single mode. But now we have review. 
+    // Let's keep auto trigger of process, but it just goes to Review.
 
-    // Auto-trigger for single mode
     setIsLoading(true);
-    setHtmlOutput(null);
     setError(null);
 
     processFile(file).then(data => {
-      const html = generateEmailHtml(data);
-      setHtmlOutput(html);
-      saveToHistory(data, html);
-      setHistoryRefresh(p => p + 1);
+      setExtractedData(data);
+      setCurrentStep('review');
     }).catch(err => {
       console.error(err);
       setError(err.message || "Erro ao processar arquivo.");
@@ -110,11 +111,33 @@ const App: React.FC = () => {
     setError(null);
   };
 
-  // Legacy handler mapping (if passed as props somewhere expecting the old signature)
-  const handleFileSelect = onSingleUpload;
+  // --- Review & Result Logic ---
+
+  const handleConfirmReview = (data: ExtractedFlightData) => {
+    setExtractedData(data);
+    const html = generateEmailHtml(data, selectedTemplate);
+    setHtmlOutput(html);
+    setCurrentStep('result');
+    saveToHistory(data, html);
+    setHistoryRefresh(prev => prev + 1);
+  };
+
+  const handleTemplateChange = (style: TemplateStyle) => {
+    setSelectedTemplate(style);
+    if (extractedData) {
+      const html = generateEmailHtml(extractedData, style);
+      setHtmlOutput(html);
+    }
+  };
 
   const handleHistorySelect = (item: HistoryItem) => {
+    // History items don't store raw data currently (only HTML), so we can just show the HTML
+    // Limitation: Can't re-edit history items easily unless we stored 'data' in history.
+    // Current system stores 'data' in HistoryItem, let's check types.ts... 
+    // types.ts: interface HistoryItem { ... data: ExtractedFlightData; ... } -> YES IT DOES!
+    setExtractedData(item.data);
     setHtmlOutput(item.html);
+    setCurrentStep('result');
   };
 
   const copyToClipboard = () => {
@@ -124,11 +147,28 @@ const App: React.FC = () => {
     }
   };
 
+  const copyWhatsApp = () => {
+    if (extractedData) {
+      const text = generateWhatsAppText(extractedData);
+      navigator.clipboard.writeText(text);
+      alert('Texto para WhatsApp copiado!');
+    }
+  };
+
+  const reset = () => {
+    setCurrentStep('upload');
+    setExtractedData(null);
+    setHtmlOutput(null);
+    setFileSingle(null);
+    setFileOutbound(null);
+    setFileInbound(null);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-900">
       <header className="bg-gradient-to-r from-[#00569e] to-[#00447c] text-white shadow-lg">
         <div className="max-w-7xl mx-auto px-4 py-5 sm:px-6 lg:px-8 flex items-center justify-between">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 cursor-pointer" onClick={reset}>
             <div className="bg-white/10 backdrop-blur-sm rounded-full p-1.5 shadow-inner">
               <img src="https://i.ibb.co/4ZRSkhmj/Nova-Logo-3.png" alt="Logo" className="w-9 h-9 rounded-full" />
             </div>
@@ -164,116 +204,129 @@ const App: React.FC = () => {
           </button>
         </div>
 
-        {activeTab === 'generator' ? (
+        {activeTab === 'config' ? (
+          <ConfigPanel />
+        ) : (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
 
-            {/* Left Column: Input (5 cols) */}
+            {/* Left Column: Input or Review */}
             <div className="lg:col-span-12 xl:col-span-5 space-y-6">
 
-              {/* Process Mode Toggle */}
-              <div className="bg-white p-2 rounded-lg shadow-sm border border-gray-200 flex mb-4">
-                <button
-                  onClick={() => setUploadMode('single')}
-                  className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${uploadMode === 'single'
-                      ? 'bg-blue-50 text-blue-700 shadow-sm'
-                      : 'text-gray-500 hover:bg-gray-50'
-                    }`}
-                >
-                  Arquivo Único
-                </button>
-                <button
-                  onClick={() => setUploadMode('dual')}
-                  className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${uploadMode === 'dual'
-                      ? 'bg-blue-50 text-blue-700 shadow-sm'
-                      : 'text-gray-500 hover:bg-gray-50'
-                    }`}
-                >
-                  Ida e Volta Separados
-                </button>
-              </div>
-
-              <div className="bg-white p-6 rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.05)] border border-gray-100 transition-shadow hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)]">
-                <h2 className="text-lg font-bold mb-4 text-[#00569e] flex items-center gap-2">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
-                  1. Enviar Arquivo(s)
-                </h2>
-
-                {uploadMode === 'single' ? (
-                  <>
-                    <p className="text-sm text-gray-600 mb-4">
-                      Envie o bilhete completo (contendo ida e volta ou só ida).
-                      <span className="block text-xs text-gray-400 mt-1">Processamento automático ao selecionar.</span>
-                    </p>
-                    <FileUpload onFileSelect={onSingleUpload} isLoading={isLoading} />
-                  </>
-                ) : (
-                  <div className="space-y-4">
-                    <p className="text-sm text-gray-600 mb-2">
-                      Envie os vouchers separadamente e clique em "Gerar Email Unificado".
-                    </p>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Bilhete de Ida</label>
-                      <div className={fileOutbound ? "border-2 border-green-500 rounded-lg overflow-hidden" : ""}>
-                        <FileUpload onFileSelect={onOutboundUpload} isLoading={false} />
-                      </div>
-                      {fileOutbound && <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
-                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                        Arquivo de Ida selecionado
-                      </p>}
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Bilhete de Volta</label>
-                      <div className={fileInbound ? "border-2 border-green-500 rounded-lg overflow-hidden" : ""}>
-                        <FileUpload onFileSelect={onInboundUpload} isLoading={false} />
-                      </div>
-                      {fileInbound && <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
-                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                        Arquivo de Volta selecionado
-                      </p>}
-                    </div>
-
+              {currentStep === 'review' && extractedData ? (
+                <ReviewPanel
+                  data={extractedData}
+                  onConfirm={handleConfirmReview}
+                  onCancel={reset}
+                />
+              ) : (
+                <>
+                  <div className="bg-white p-2 rounded-lg shadow-sm border border-gray-200 flex mb-4">
                     <button
-                      onClick={handleProcess}
-                      disabled={!fileOutbound || !fileInbound || isLoading}
-                      className={`w-full py-3 px-4 rounded-lg font-bold text-white shadow-md transition-all flex items-center justify-center gap-2
-                        ${(!fileOutbound || !fileInbound || isLoading)
-                          ? 'bg-gray-300 cursor-not-allowed'
-                          : 'bg-[#00569e] hover:bg-[#00447c] shadow-lg hover:shadow-xl'
+                      onClick={() => setUploadMode('single')}
+                      className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${uploadMode === 'single'
+                          ? 'bg-blue-50 text-blue-700 shadow-sm'
+                          : 'text-gray-500 hover:bg-gray-50'
                         }`}
                     >
-                      {isLoading ? (
-                        <>
-                          <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                          Processando...
-                        </>
-                      ) : (
-                        <>
-                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
-                          Gerar Email Unificado
-                        </>
-                      )}
+                      Arquivo Único
+                    </button>
+                    <button
+                      onClick={() => setUploadMode('dual')}
+                      className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${uploadMode === 'dual'
+                          ? 'bg-blue-50 text-blue-700 shadow-sm'
+                          : 'text-gray-500 hover:bg-gray-50'
+                        }`}
+                    >
+                      Ida e Volta Separados
                     </button>
                   </div>
-                )}
 
-                {error && (
-                  <div className="mt-4 p-4 bg-red-50 text-red-700 border border-red-100 rounded-lg text-sm flex items-start gap-2">
-                    <svg className="w-5 h-5 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                    <div>
-                      <strong className="block font-semibold mb-1">Erro ao processar:</strong>
-                      {error}
-                    </div>
+                  <div className="bg-white p-6 rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.05)] border border-gray-100 transition-shadow hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)]">
+                    <h2 className="text-lg font-bold mb-4 text-[#00569e] flex items-center gap-2">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+                      1. Enviar Arquivo(s)
+                    </h2>
+
+                    {uploadMode === 'single' ? (
+                      <>
+                        <p className="text-sm text-gray-600 mb-4">
+                          Envie o bilhete completo.
+                          <span className="block text-xs text-gray-400 mt-1">A IA processará e mostrará para revisão.</span>
+                        </p>
+                        <FileUpload onFileSelect={onSingleUpload} isLoading={isLoading} />
+                      </>
+                    ) : (
+                      <div className="space-y-4">
+                        <p className="text-sm text-gray-600 mb-2">Envie os vouchers separadamente.</p>
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Ida</label>
+                          <div className={fileOutbound ? "border-2 border-green-500 rounded-lg overflow-hidden" : ""}>
+                            <FileUpload onFileSelect={onOutboundUpload} isLoading={false} />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Volta</label>
+                          <div className={fileInbound ? "border-2 border-green-500 rounded-lg overflow-hidden" : ""}>
+                            <FileUpload onFileSelect={onInboundUpload} isLoading={false} />
+                          </div>
+                        </div>
+                        <button
+                          onClick={handleProcess}
+                          disabled={!fileOutbound || !fileInbound || isLoading}
+                          className={`w-full py-3 px-4 rounded-lg font-bold text-white shadow-md transition-all flex items-center justify-center gap-2
+                                ${(!fileOutbound || !fileInbound || isLoading)
+                              ? 'bg-gray-300 cursor-not-allowed'
+                              : 'bg-[#00569e] hover:bg-[#00447c] shadow-lg hover:shadow-xl'
+                            }`}
+                        >
+                          {isLoading ? 'Processando...' : 'Revisar & Gerar'}
+                        </button>
+                      </div>
+                    )}
+
+                    {error && (
+                      <div className="mt-4 p-4 bg-red-50 text-red-700 border border-red-100 rounded-lg text-sm flex items-start gap-2">
+                        <strong className="font-semibold">Erro:</strong> {error}
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
 
-              <HistoryPanel onSelect={handleHistorySelect} refreshTrigger={historyRefresh} />
+                  <HistoryPanel onSelect={handleHistorySelect} refreshTrigger={historyRefresh} />
+                </>
+              )}
             </div>
 
-            {/* Right Column: Output (7 cols) */}
+            {/* Right Column: Result */}
             <div className="lg:col-span-12 xl:col-span-7 space-y-6">
+
+              {/* Toolbar in Result Mode */}
+              {currentStep === 'result' && (
+                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-wrap gap-4 items-center justify-between animate-in fade-in slide-in-from-top-2">
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-semibold text-gray-600">Modelo:</span>
+                    <div className="flex bg-gray-100 p-1 rounded-lg">
+                      {(['classic', 'minimal', 'urgent'] as TemplateStyle[]).map(style => (
+                        <button
+                          key={style}
+                          onClick={() => handleTemplateChange(style)}
+                          className={`px-3 py-1.5 rounded-md text-xs font-medium capitalize transition-all ${selectedTemplate === style ? 'bg-white shadow text-[#00569e]' : 'text-gray-500 hover:text-gray-800'}`}
+                        >
+                          {style === 'classic' ? 'Clássico' : style === 'minimal' ? 'Minimalista' : 'Urgente'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={copyWhatsApp}
+                    className="px-4 py-2 bg-[#25D366] hover:bg-[#128C7E] text-white text-sm font-bold rounded-lg shadow-sm flex items-center gap-2 transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.304-5.235c0-5.421 4.409-9.85 9.85-9.85 2.636 0 5.118 1.026 6.982 2.887 1.865 1.862 2.891 4.345 2.891 6.975 0 5.429-4.417 9.855-9.845 9.855" /></svg>
+                    Copiar p/ WhatsApp
+                  </button>
+                </div>
+              )}
+
               <h2 className="text-lg font-bold text-[#00569e] flex items-center gap-2">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                 2. Resultado Gerado
@@ -289,7 +342,7 @@ const App: React.FC = () => {
                     </div>
                     <div className="h-[500px] w-full overflow-y-auto bg-gray-50/50 p-6 scrollbar-thin">
                       <div
-                        className="bg-white max-w-[600px] mx-auto shadow-lg ring-1 ring-gray-900/5"
+                        className="bg-white max-w-[600px] mx-auto shadow-lg ring-1 ring-gray-900/5 origin-top scale-[0.9] sm:scale-100"
                         dangerouslySetInnerHTML={{ __html: htmlOutput }}
                       />
                     </div>
@@ -334,8 +387,6 @@ const App: React.FC = () => {
               )}
             </div>
           </div>
-        ) : (
-          <ConfigPanel />
         )}
       </main>
     </div>
