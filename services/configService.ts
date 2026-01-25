@@ -1,7 +1,9 @@
 import { AgentProfile, AppConfig } from '../types';
+import CryptoJS from 'crypto-js';
 
 const AGENTS_KEY = 'flight_extractor_agents';
-const CONFIG_KEY = 'flight_extractor_config_v2'; // v2 to migrate cleanly if needed
+const CONFIG_KEY = 'flight_extractor_config_v2';
+const SECRET_KEY = 'CLUBE_DO_VOO_SECURE_V1'; // Static key for client-side obfuscation
 
 const DEFAULT_AGENTS: AgentProfile[] = [
     {
@@ -13,6 +15,26 @@ const DEFAULT_AGENTS: AgentProfile[] = [
         isActive: true
     }
 ];
+
+// --- Encryption Helpers ---
+
+const encrypt = (data: string): string => {
+    if (!data) return '';
+    return CryptoJS.AES.encrypt(data, SECRET_KEY).toString();
+};
+
+const decrypt = (ciphertext: string): string => {
+    if (!ciphertext) return '';
+    try {
+        const bytes = CryptoJS.AES.decrypt(ciphertext, SECRET_KEY);
+        const originalText = bytes.toString(CryptoJS.enc.Utf8);
+        return originalText || ciphertext; // Fallback
+    } catch (e) {
+        return ciphertext; // Fallback for plain text
+    }
+};
+
+// --- Services ---
 
 export const getAgents = (): AgentProfile[] => {
     const raw = localStorage.getItem(AGENTS_KEY);
@@ -43,9 +65,31 @@ export const setActiveAgent = (id: string) => {
 
 export const getConfig = (): AppConfig => {
     const raw = localStorage.getItem(CONFIG_KEY);
-    if (raw) return JSON.parse(raw);
 
-    // Migration from old keys
+    if (raw) {
+        // Try interpreting as legacy Plain JSON first
+        try {
+            const parsed = JSON.parse(raw);
+            // If it parses and has keys we expect, return it.
+            // But verify: encrypted strings are NOT valid json objects usually (unless "string").
+            if (typeof parsed === 'object' && parsed !== null) {
+                return parsed;
+            }
+        } catch {
+            // Not JSON, likely encrypted string
+        }
+
+        // Try decrypting
+        try {
+            const decryptedString = decrypt(raw);
+            return JSON.parse(decryptedString);
+        } catch {
+            // Reset if corrupted
+            return { geminiKey: '', openaiKey: '', provider: 'gemini' };
+        }
+    }
+
+    // Fallback: Migration from old unencrypted keys (legacy v1 keys)
     return {
         geminiKey: localStorage.getItem('flight_extractor_api_key') || '',
         openaiKey: '',
@@ -57,8 +101,14 @@ export const getConfig = (): AppConfig => {
 };
 
 export const saveConfig = (config: AppConfig) => {
-    localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
-    // Sync legacy keys for backward compat with services
-    localStorage.setItem('flight_extractor_api_key', config.geminiKey);
-    localStorage.setItem('flight_extractor_provider', config.provider);
+    // Encrypt the entire config object as a string
+    const jsonString = JSON.stringify(config);
+    const encrypted = encrypt(jsonString);
+
+    localStorage.setItem(CONFIG_KEY, encrypted);
+
+    // Clean up legacy keys to avoid confusion, since we are now fully using the encrypted blob
+    localStorage.removeItem('flight_extractor_api_key');
+    // We keep provider just in case other parts look at it, but ideally we should clean it too.
+    // localStorage.removeItem('flight_extractor_provider');
 };
