@@ -10,7 +10,6 @@ import { generateWhatsAppText } from './utils/whatsappTemplate';
 import { saveToHistory } from './services/historyService';
 import { getConfig } from './services/configService';
 import { HistoryItem, ExtractedFlightData } from './types';
-import html2pdf from 'html2pdf.js';
 import emailjs from '@emailjs/browser';
 
 const App: React.FC = () => {
@@ -157,18 +156,35 @@ const App: React.FC = () => {
 
   const handleDownloadPDF = () => {
     if (!htmlOutput) return;
-    const element = document.createElement('div');
-    element.innerHTML = htmlOutput;
 
-    const opt = {
-      margin: 0,
-      filename: `Passagem_${extractedData?.passengerNames || 'Cliente'}.pdf`,
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2 },
-      jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
-    };
+    // Create an invisible iframe to print
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
 
-    html2pdf().from(element).set(opt).save();
+    const doc = iframe.contentWindow?.document;
+    if (doc) {
+      doc.open();
+      doc.write(htmlOutput);
+      doc.close();
+
+      // Wait for images to load then print
+      iframe.contentWindow?.focus();
+      setTimeout(() => {
+        iframe.contentWindow?.print();
+        // Remove update print dialog closes (or timeout)
+        setTimeout(() => {
+          if (document.body.contains(iframe)) {
+            document.body.removeChild(iframe);
+          }
+        }, 2000); // Give user time to see dialog but usually it blocks JS exec until closed
+      }, 500);
+    }
   };
 
   const handleSendEmail = async () => {
@@ -186,15 +202,11 @@ const App: React.FC = () => {
 
     setIsSending(true);
     try {
-      // Note: This relies on the template in EmailJS expecting variables like {{html_content}} or similar
-      // Or we can just send the text details. Sending Raw HTML via EmailJS usually requires a specific template setup.
-      // For simplicity, we send a notification with the link or summary, or we assume the user set up a template that accepts 'message'
-      // A better approach for this MVP is sending the Text summary.
       const templateParams = {
         to_email: userEmail,
         to_name: extractedData.passengerNames,
-        message: generateWhatsAppText(extractedData), // Fallback to text version for reliability
-        html_content: htmlOutput // If the user template supports it
+        message: generateWhatsAppText(extractedData),
+        html_content: htmlOutput
       };
 
       await emailjs.send(
@@ -204,9 +216,9 @@ const App: React.FC = () => {
         config.emailJsPublicKey
       );
       alert("Email enviado com sucesso!");
-    } catch (err) {
+    } catch (err: any) {
       console.error("Email Error:", err);
-      alert("Falha ao enviar email via EmailJS. Verifique suas chaves.");
+      alert("Falha ao enviar email. Verifique suas chaves.");
     } finally {
       setIsSending(false);
     }
@@ -292,8 +304,8 @@ const App: React.FC = () => {
                     <button
                       onClick={() => setUploadMode('single')}
                       className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${uploadMode === 'single'
-                          ? 'bg-blue-50 text-blue-700 shadow-sm'
-                          : 'text-gray-500 hover:bg-gray-50'
+                        ? 'bg-blue-50 text-blue-700 shadow-sm'
+                        : 'text-gray-500 hover:bg-gray-50'
                         }`}
                     >
                       Arquivo Único
@@ -301,8 +313,8 @@ const App: React.FC = () => {
                     <button
                       onClick={() => setUploadMode('dual')}
                       className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${uploadMode === 'dual'
-                          ? 'bg-blue-50 text-blue-700 shadow-sm'
-                          : 'text-gray-500 hover:bg-gray-50'
+                        ? 'bg-blue-50 text-blue-700 shadow-sm'
+                        : 'text-gray-500 hover:bg-gray-50'
                         }`}
                     >
                       Ida e Volta Separados
@@ -398,7 +410,7 @@ const App: React.FC = () => {
 
                     <button
                       onClick={handleDownloadPDF}
-                      title="Baixar PDF"
+                      title="Baixar PDF (Imprimir)"
                       className="p-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors border border-red-200"
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
