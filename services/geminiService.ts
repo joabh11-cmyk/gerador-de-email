@@ -106,10 +106,7 @@ export async function extractFlightData(fileBase64: string, mimeType: string, ap
       },
       config: {
         responseMimeType: "application/json",
-        responseSchema: extractionSchema,
-        thinkingConfig: {
-          thinkingBudget: 16000
-        }
+        responseSchema: extractionSchema
       }
     });
 
