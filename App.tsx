@@ -274,24 +274,36 @@ const App: React.FC = () => {
           {/* Navigation Tabs */}
           <div className="flex border-b border-gray-200 mb-8 max-w-2xl">
             <button
-              onClick={() => { setActiveTab('generator'); setSelectedTemplate('classic'); }}
+              onClick={() => {
+                if (activeTab !== 'generator') {
+                  setActiveTab('generator');
+                  setSelectedTemplate('classic');
+                  reset(); // Clear previous data
+                }
+              }}
               type="button"
               className={`py-3 px-6 text-sm font-semibold border-b-2 transition-all duration-200 ${activeTab === 'generator'
                 ? 'border-[#00569e] text-[#00569e]'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
             >
-              Gerador
+              Confirmação de Voo
             </button>
             <button
-              onClick={() => { setActiveTab('reminder'); setSelectedTemplate('reminder'); }}
+              onClick={() => {
+                if (activeTab !== 'reminder') {
+                  setActiveTab('reminder');
+                  setSelectedTemplate('reminder');
+                  reset(); // Clear previous data
+                }
+              }}
               type="button"
               className={`py-3 px-6 text-sm font-semibold border-b-2 transition-all duration-200 ${activeTab === 'reminder'
                 ? 'border-[#00569e] text-[#00569e]'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
             >
-              Lembrete de Voo ✈️
+              Lembrete de Voo
             </button>
             <button
               onClick={() => setActiveTab('dashboard')}
@@ -301,7 +313,7 @@ const App: React.FC = () => {
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
             >
-              Dashboard 📊
+              Dashboard
             </button>
             <button
               onClick={() => setActiveTab('config')}
