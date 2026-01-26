@@ -12,7 +12,7 @@ import { getConfig } from './services/configService';
 import { HistoryItem, ExtractedFlightData } from './types';
 import emailjs from '@emailjs/browser';
 import { Plane, Bell, BarChart3, Settings } from 'lucide-react';
-import { MenuBar, MenuItem } from './components/ui/glow-menu';
+import FloatingNav, { FloatingNavItem } from './components/ui/floating-nav';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'generator' | 'reminder' | 'config' | 'dashboard'>('generator');
@@ -39,34 +39,26 @@ const App: React.FC = () => {
   const [formValues, setFormValues] = useState({ to_email: '', to_name: '', message: '', html_content: '' });
 
   // --- Menu Items Definition ---
-  const menuItems: MenuItem[] = [
+  const menuItems: FloatingNavItem[] = [
     {
-      icon: Plane,
+      icon: <Plane size={20} />,
       label: "Confirmação",
       id: "generator",
-      gradient: "radial-gradient(circle, rgba(59,130,246,0.15) 0%, rgba(37,99,235,0.06) 50%, rgba(29,78,216,0) 100%)",
-      iconColor: "text-blue-500",
     },
     {
-      icon: Bell,
+      icon: <Bell size={20} />,
       label: "Lembrete",
       id: "reminder",
-      gradient: "radial-gradient(circle, rgba(249,115,22,0.15) 0%, rgba(234,88,12,0.06) 50%, rgba(194,65,12,0) 100%)",
-      iconColor: "text-orange-500",
     },
     {
-      icon: BarChart3,
+      icon: <BarChart3 size={20} />,
       label: "Painel",
       id: "dashboard",
-      gradient: "radial-gradient(circle, rgba(34,197,94,0.15) 0%, rgba(22,163,74,0.06) 50%, rgba(21,128,61,0) 100%)",
-      iconColor: "text-green-500",
     },
     {
-      icon: Settings,
-      label: "Configurações",
+      icon: <Settings size={20} />,
+      label: "Config",
       id: "config",
-      gradient: "radial-gradient(circle, rgba(239,68,68,0.15) 0%, rgba(220,38,38,0.06) 50%, rgba(185,28,28,0) 100%)",
-      iconColor: "text-red-500",
     },
   ];
 
@@ -298,10 +290,10 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#fafafa] font-sans text-gray-900 selection:bg-blue-100">
+    <div className="min-h-screen bg-[#fafafa] font-sans text-gray-900 selection:bg-blue-100 pb-32"> {/* Added pb-32 for floating nav space */}
 
       {/* Header Minimalista */}
-      <header className="bg-white/80 backdrop-blur-md border-b border-gray-200 sticky top-0 z-50">
+      <header className="bg-white/80 backdrop-blur-md border-b border-gray-200 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 py-3 sm:px-6 lg:px-8 flex items-center justify-between">
           <div className="flex items-center gap-3 cursor-pointer group" onClick={reset}>
             <div className="relative">
@@ -313,21 +305,12 @@ const App: React.FC = () => {
             </div>
           </div>
           <div className="text-xs font-mono text-gray-400 bg-gray-50 px-2 py-1 rounded border border-gray-100">
-            v2.1
+            v2.2
           </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
-
-        {/* Glow Menu Centralizado */}
-        <div className="flex justify-center mb-10">
-          <MenuBar
-            items={menuItems}
-            activeItem={activeTab}
-            onItemClick={handleMenuClick}
-          />
-        </div>
 
         {/* Form wrapper for EmailJS sendForm */}
         <form id="email-form" onSubmit={e => e.preventDefault()}>
@@ -337,11 +320,15 @@ const App: React.FC = () => {
           <textarea name="html_content" className="hidden" value={formValues.html_content} readOnly />
 
           {activeTab === 'config' ? (
-            <ConfigPanel />
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <ConfigPanel />
+            </div>
           ) : activeTab === 'dashboard' ? (
-            <DashboardPanel />
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <DashboardPanel />
+            </div>
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
               {/* Left Column: Input or Review */}
               <div className="lg:col-span-12 xl:col-span-5 space-y-6">
@@ -354,12 +341,13 @@ const App: React.FC = () => {
                   />
                 ) : (
                   <>
-                    <div className="bg-white p-2 rounded-lg shadow-sm border border-gray-200 flex mb-4">
+                    {/* Mode Select */}
+                    <div className="bg-white p-1 rounded-xl shadow-sm border border-gray-200 flex mb-4 relative z-0">
                       <button
                         type="button"
                         onClick={() => setUploadMode('single')}
-                        className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${uploadMode === 'single'
-                          ? 'bg-blue-50 text-blue-700 shadow-sm'
+                        className={`flex-1 py-3 text-sm font-medium rounded-lg transition-all relative z-10 ${uploadMode === 'single'
+                          ? 'bg-blue-50 text-blue-700 shadow-sm ring-1 ring-blue-100'
                           : 'text-gray-500 hover:bg-gray-50'
                           }`}
                       >
@@ -368,8 +356,8 @@ const App: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setUploadMode('dual')}
-                        className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${uploadMode === 'dual'
-                          ? 'bg-blue-50 text-blue-700 shadow-sm'
+                        className={`flex-1 py-3 text-sm font-medium rounded-lg transition-all relative z-10 ${uploadMode === 'dual'
+                          ? 'bg-blue-50 text-blue-700 shadow-sm ring-1 ring-blue-100'
                           : 'text-gray-500 hover:bg-gray-50'
                           }`}
                       >
@@ -377,38 +365,44 @@ const App: React.FC = () => {
                       </button>
                     </div>
 
-                    <div className="bg-white p-8 rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-gray-100 transition-all hover:shadow-[0_8px_30px_rgba(0,0,0,0.04)]">
-                      <div className="flex items-center gap-3 mb-6">
-                        <div className={`p-2 rounded-lg ${activeTab === 'reminder' ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600'}`}>
-                          {activeTab === 'reminder' ? <Bell className="w-5 h-5" /> : <Plane className="w-5 h-5" />}
+                    <div className="bg-white p-8 rounded-3xl shadow-[0_8px_30px_rgba(0,0,0,0.04)] border border-gray-100 transition-all hover:shadow-[0_8px_40px_rgba(0,0,0,0.06)] relative overflow-hidden group">
+
+                      {/* Decorative Background Blob */}
+                      <div className={`absolute -right-10 -top-10 w-40 h-40 rounded-full blur-3xl opacity-50 pointer-events-none transition-colors duration-700 ${activeTab === 'reminder' ? 'bg-orange-100' : 'bg-blue-100'}`}></div>
+
+                      <div className="flex items-center gap-4 mb-8 relative z-10">
+                        <div className={`p-3 rounded-2xl shadow-sm ${activeTab === 'reminder' ? 'bg-orange-50 text-orange-600 ring-1 ring-orange-100' : 'bg-blue-50 text-blue-600 ring-1 ring-blue-100'}`}>
+                          {activeTab === 'reminder' ? <Bell className="w-6 h-6" /> : <Plane className="w-6 h-6" />}
                         </div>
                         <div>
-                          <h2 className="text-lg font-bold text-gray-900">
-                            {activeTab === 'reminder' ? 'Novo Lembrete' : 'Nova Confirmação'}
+                          <h2 className="text-xl font-bold text-gray-900 tracking-tight">
+                            {activeTab === 'reminder' ? 'Novo Lembrete' : 'Confirmar Voo'}
                           </h2>
-                          <p className="text-xs text-gray-500">Envie o arquivo PDF ou Imagem para começar</p>
+                          <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mt-1">
+                            {activeTab === 'reminder' ? 'Whatsapp + Email' : 'Passo 1: Upload'}
+                          </p>
                         </div>
                       </div>
 
                       {uploadMode === 'single' ? (
-                        <>
+                        <div className="relative z-10">
                           <FileUpload
                             onFileSelect={onSingleUpload}
                             isLoading={isLoading}
                             name="attachment" // Name for EmailJS attachment
                           />
-                        </>
+                        </div>
                       ) : (
-                        <div className="space-y-4">
+                        <div className="space-y-4 relative z-10">
                           <div>
-                            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Ida</label>
-                            <div className={fileOutbound ? "border-2 border-green-500 rounded-lg overflow-hidden" : ""}>
+                            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">Voo de Ida</label>
+                            <div className={fileOutbound ? "ring-2 ring-green-500 rounded-xl overflow-hidden shadow-sm" : ""}>
                               <FileUpload onFileSelect={onOutboundUpload} isLoading={false} name="attachment_1" />
                             </div>
                           </div>
                           <div>
-                            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Volta</label>
-                            <div className={fileInbound ? "border-2 border-green-500 rounded-lg overflow-hidden" : ""}>
+                            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">Voo de Volta</label>
+                            <div className={fileInbound ? "ring-2 ring-green-500 rounded-xl overflow-hidden shadow-sm" : ""}>
                               <FileUpload onFileSelect={onInboundUpload} isLoading={false} name="attachment_2" />
                             </div>
                           </div>
@@ -416,10 +410,10 @@ const App: React.FC = () => {
                             type="button"
                             onClick={handleProcess}
                             disabled={!fileOutbound || !fileInbound || isLoading}
-                            className={`w-full py-4 px-6 rounded-xl font-bold text-white shadow-lg transition-all flex items-center justify-center gap-2 transform active:scale-95
+                            className={`w-full py-4 px-6 rounded-xl font-bold text-white shadow-xl transition-all flex items-center justify-center gap-2 transform active:scale-[0.98]
                                     ${(!fileOutbound || !fileInbound || isLoading)
-                                ? 'bg-gray-300 cursor-not-allowed shadow-none'
-                                : 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 shadow-blue-200'
+                                ? 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
+                                : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 shadow-blue-500/20'
                               }`}
                           >
                             {isLoading ? 'Processando IA...' : 'Revisar & Gerar'}
@@ -428,10 +422,10 @@ const App: React.FC = () => {
                       )}
 
                       {error && (
-                        <div className="mt-6 p-4 bg-red-50 text-red-700 border border-red-100 rounded-xl text-sm flex items-start gap-3 animate-pulse">
-                          <div className="p-1 bg-red-100 rounded-full mt-0.5"><span className="block w-2 h-2 bg-red-500 rounded-full"></span></div>
+                        <div className="mt-6 p-4 bg-red-50 text-red-700 border border-red-100 rounded-xl text-sm flex items-start gap-3 animate-in slide-in-from-bottom-2">
+                          <div className="p-1 bg-red-100 rounded-full mt-0.5 min-w-[16px]"><span className="block w-2 h-2 bg-red-500 rounded-full mx-auto mt-[3px]"></span></div>
                           <div>
-                            <strong className="block font-semibold mb-1">Erro ao processar</strong>
+                            <strong className="block font-semibold mb-1">Ops, algo deu errado</strong>
                             {error}
                           </div>
                         </div>
@@ -565,6 +559,13 @@ const App: React.FC = () => {
           )}
         </form>
       </main>
+
+      {/* Floating Nav placed at the end */}
+      <FloatingNav
+        items={menuItems}
+        activeId={activeTab}
+        onItemClick={handleMenuClick}
+      />
     </div>
   );
 };
