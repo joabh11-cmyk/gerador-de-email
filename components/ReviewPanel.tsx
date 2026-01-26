@@ -144,18 +144,19 @@ const ReviewPanel: React.FC<ReviewPanelProps> = ({ data, onConfirm, onCancel }) 
                             <option value="Prezado">Prezado</option>
                             <option value="Prezada">Prezada</option>
                             <option value="Prezados">Prezados</option>
-                            <option value="Prezadas">Prezadas</option>
+                            <option value="Prezada">Prezadas</option>
                         </select>
                     </div>
                 </div>
 
-                {/* Flight Segments */}
-                {renderFlightSegment('Trecho 1 (Ida)', 'outbound', 'blue')}
-                {renderFlightSegment('Trecho 2 (Volta)', 'inbound', 'green')}
+                {/* Flight Segments in chronological order */}
+                {renderFlightSegment('Trecho 1', 'outbound', 'blue')}
                 
                 {formData.additionalSegments?.map((_, index) => (
-                    renderFlightSegment(`Trecho ${index + 3}`, index, 'purple')
+                    renderFlightSegment(`Trecho ${index + 2}`, index, 'purple')
                 ))}
+
+                {formData.inbound && renderFlightSegment(`Trecho ${(formData.additionalSegments?.length || 0) + 2}`, 'inbound', 'green')}
 
                 <button 
                     onClick={addSegment}

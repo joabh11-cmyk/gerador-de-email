@@ -86,20 +86,26 @@ export async function extractFlightData(fileBase64: string, mimeType: string, ap
           },
           {
             text: `Analyze the attached flight document (ticket, itinerary, screenshot). 
-            Extract the flight details for the outbound and inbound (if applicable) flights.
+            Extract ALL individual flight segments found in the document.
+            
+            IMPORTANT: If a trip has a connection (e.g., Salvador -> São Paulo -> Rio de Janeiro), these are TWO separate flight segments. You MUST extract each one individually.
             
             Strictly follow these rules:
-            1. If it is a one-way ticket, set 'inbound' to null.
-            2. If it is a direct flight, set 'connection' to null. If there are stops, summarize the connection details (duration and flight number of connecting flight).
-            3. PASSENGER NAMES: Extract the full names. If multiple passengers, join them naturally (e.g. "João Silva e Maria Souza"). Capitalize properly.
-            4. GREETING: Determine the correct greeting (Prezado/Prezada/Prezados/Prezadas) based on the gender and number of passengers.
-            5. PRONOUN: Choose 'o', 'a', 'os', or 'as' for the phrase "Esperamos que este email [pronoun] encontre bem".
-            6. DATES & TIMES: Format dates as dd/mm/aaaa and times as hh:mm. Pay attention to "Next Day" (+1) arrival times, but extract the time exactly as shown.
-            7. ORIGIN/DESTINATION: Use the City Name (e.g. "São Paulo", "Nova York") rather than just the code if available.
-            8. AIRLINES: Use the full name of the operating airline.
-            9. SEATS: Extract the seat number if available.
-            10. BOARDING TIME: Extract the boarding time. If not explicitly mentioned, calculate it as 40 minutes before the departure time.
-            11. MULTIPLE SEGMENTS: If the document contains more than 2 flights (e.g. a multi-city trip), put the first in 'outbound', the second in 'inbound', and any others in 'additionalSegments'.
+            1. SEGMENT MAPPING: 
+               - Put the VERY FIRST flight segment in 'outbound'.
+               - If there are more segments, put the VERY LAST flight segment of the entire trip in 'inbound'.
+               - Put ALL segments that happen BETWEEN the first and the last in the 'additionalSegments' array, in chronological order.
+               - If there is only ONE flight segment total, set 'inbound' to null and 'additionalSegments' to [].
+               - If there are only TWO flight segments total, put the first in 'outbound' and the second in 'inbound'.
+            2. PASSENGER NAMES: Extract the full names. If multiple passengers, join them naturally (e.g. "João Silva e Maria Souza"). Capitalize properly.
+            3. GREETING: Determine the correct greeting (Prezado/Prezada/Prezados/Prezadas) based on the gender and number of passengers.
+            4. PRONOUN: Choose 'o', 'a', 'os', or 'as' for the phrase "Esperamos que este email [pronoun] encontre bem".
+            5. DATES & TIMES: Format dates as dd/mm/aaaa and times as hh:mm.
+            6. ORIGIN/DESTINATION: Use the City Name (e.g. "São Paulo", "Nova York") rather than just the code if available.
+            7. AIRLINES: Use the full name of the operating airline.
+            8. SEATS: Extract the seat number for EACH segment if available.
+            9. BOARDING TIME: Extract the boarding time for EACH segment. If not explicitly mentioned, calculate it as 40 minutes before the departure time.
+            10. PNR: The booking reference (localizador) is usually the same for all segments, but check each one.
             `
           }
         ]
