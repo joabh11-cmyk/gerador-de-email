@@ -75,7 +75,7 @@ export async function extractFlightData(fileBase64: string, mimeType: string, ap
 
     const ai = getGenAI(finalApiKey);
     const response = await ai.models.generateContent({
-      model: "tunedModels/gemini-3-pro",
+      model: "gemini-2.0-flash",
       contents: {
         parts: [
           {
