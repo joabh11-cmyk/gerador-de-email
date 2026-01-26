@@ -23,14 +23,14 @@ const encrypt = (data: string): string => {
     return CryptoJS.AES.encrypt(data, SECRET_KEY).toString();
 };
 
-const decrypt = (ciphertext: string): string => {
-    if (!ciphertext) return '';
+const decrypt = (ciphertext: string): string | null => {
+    if (!ciphertext) return null;
     try {
         const bytes = CryptoJS.AES.decrypt(ciphertext, SECRET_KEY);
         const originalText = bytes.toString(CryptoJS.enc.Utf8);
-        return originalText || ciphertext; // Fallback
+        return originalText || null;
     } catch (e) {
-        return ciphertext; // Fallback for plain text
+        return null;
     }
 };
 
@@ -82,10 +82,12 @@ export const getConfig = (): AppConfig => {
         // Try decrypting
         try {
             const decryptedString = decrypt(raw);
-            return JSON.parse(decryptedString);
+            if (decryptedString) {
+                return JSON.parse(decryptedString);
+            }
         } catch {
             // Reset if corrupted
-            return { geminiKey: '', openaiKey: '', provider: 'gemini' };
+            return { geminiKey: '', openaiKey: '', provider: 'gemini', emailJsServiceId: '', emailJsTemplateId: '', emailJsPublicKey: '' };
         }
     }
 

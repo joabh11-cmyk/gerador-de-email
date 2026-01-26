@@ -55,8 +55,8 @@ const extractionSchema: Schema = {
     pronoun: { type: Type.STRING, description: "The object pronoun for 'find you well'. Use 'o' (masc sing), 'a' (fem sing), 'os' (masc plural), 'as' (fem plural)." },
     outbound: flightSegmentSchema,
     inbound: { ...flightSegmentSchema, nullable: true },
-    additionalSegments: { 
-      type: Type.ARRAY, 
+    additionalSegments: {
+      type: Type.ARRAY,
       items: flightSegmentSchema,
       description: "Any additional flight segments beyond outbound and inbound."
     }
@@ -68,14 +68,14 @@ export async function extractFlightData(fileBase64: string, mimeType: string, ap
   try {
     // If apiKey is not provided, try to get it from localStorage as fallback
     const finalApiKey = apiKey || localStorage.getItem('flight_extractor_api_key') || import.meta.env.VITE_GEMINI_API_KEY;
-    
+
     if (!finalApiKey) {
       throw new Error("API Key não encontrada. Configure-a na aba 'Configurações'.");
     }
 
     const ai = getGenAI(finalApiKey);
     const response = await ai.models.generateContent({
-      model: "gemini-3-pro-preview",
+      model: "gemini-1.5-flash",
       contents: {
         parts: [
           {
